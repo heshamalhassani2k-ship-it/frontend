@@ -1,3 +1,8 @@
+/**
+ * Theme color palette for light and dark modes
+ * All colors are carefully chosen for accessibility and visual hierarchy
+ */
+
 export type ThemeMode = 'light' | 'dark';
 
 export const palette = {
@@ -16,7 +21,7 @@ export const palette = {
     accentDebt: '#E11D48',
     accentWarning: '#D97706',
     divider: 'rgba(15, 23, 42, 0.08)',
-    inputBg: 'rgba(255,255,255,0.85)',
+    inputBg: 'rgba(255, 255, 255, 0.85)',
     overlay: 'rgba(15, 23, 42, 0.45)',
   },
   dark: {
@@ -39,6 +44,7 @@ export const palette = {
   },
 };
 
+// Category colors for financial operations
 export const categoryColors = [
   '#0284C7', '#059669', '#E11D48', '#D97706', '#7C3AED',
   '#DB2777', '#0D9488', '#F59E0B', '#6366F1', '#84CC16',

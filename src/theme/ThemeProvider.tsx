@@ -1,6 +1,12 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+/**
+ * Global Theme Provider
+ * Manages light/dark mode toggle and RTL setup
+ * Persists theme preference to AsyncStorage
+ */
+
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 import { palette, ThemeMode, ThemeColors } from './colors';
 
 const THEME_KEY = '@app:theme_mode';
@@ -19,40 +25,68 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>('dark');
   const [ready, setReady] = useState(false);
 
+  // Initialize RTL on native platforms only (web handles RTL via CSS/dir attribute)
   useEffect(() => {
-    // Force RTL globally
-    if (!I18nManager.isRTL) {
-      try {
-        I18nManager.allowRTL(true);
-        I18nManager.forceRTL(true);
-      } catch {}
+    if (Platform.OS !== 'web') {
+      if (!I18nManager.isRTL) {
+        try {
+          I18nManager.allowRTL(true);
+          I18nManager.forceRTL(true);
+        } catch (error) {
+          // Silently fail if RTL forcing is not supported
+          console.debug('RTL setup skipped:', error);
+        }
+      }
     }
-    AsyncStorage.getItem(THEME_KEY).then((stored) => {
-      if (stored === 'light' || stored === 'dark') setModeState(stored);
-      setReady(true);
-    }).catch(() => setReady(true));
   }, []);
 
-  const setMode = (next: ThemeMode) => {
+  // Load saved theme preference
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(THEME_KEY);
+        if (stored === 'light' || stored === 'dark') {
+          setModeState(stored);
+        }
+      } catch (error) {
+        console.debug('Failed to load theme preference:', error);
+      } finally {
+        setReady(true);
+      }
+    };
+
+    loadTheme();
+  }, []);
+
+  const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);
-    AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
-  };
+    AsyncStorage.setItem(THEME_KEY, next).catch((error) => {
+      console.debug('Failed to persist theme:', error);
+    });
+  }, []);
 
-  const toggleMode = () => setMode(mode === 'light' ? 'dark' : 'light');
+  const toggleMode = useCallback(() => {
+    setMode(mode === 'light' ? 'dark' : 'light');
+  }, [mode, setMode]);
 
-  const value = useMemo<ThemeContextValue>(() => ({
-    mode,
-    colors: mode === 'light' ? palette.light : palette.dark,
-    toggleMode,
-    setMode,
-    ready,
-  }), [mode, ready]);
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      mode,
+      colors: mode === 'light' ? palette.light : palette.dark,
+      toggleMode,
+      setMode,
+      ready,
+    }),
+    [mode, toggleMode, setMode, ready]
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
-export function useTheme() {
+export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
+  if (!ctx) {
+    throw new Error('useTheme must be used within ThemeProvider');
+  }
   return ctx;
 }
